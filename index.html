@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Synthwave Horizon 84</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #030308;
+      color: #00f0ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .game-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 600px;
+      padding: 10px;
+    }
+    .hud {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 15, 30, 0.85);
+      border: 1px solid #00f0ff;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .hud span {
+      color: #ff0055;
+      font-size: 1.1rem;
+    }
+    canvas {
+      background: #020205;
+      border: 2px solid #00f0ff;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+      width: 100%;
+      max-width: 600px;
+      aspect-ratio: 4 / 3;
+      display: block;
+      touch-action: none;
+    }
+    .overlay {
+      position: absolute;
+      top: 65px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      background: rgba(3, 3, 8, 0.88);
+      border: 1px solid #ff0055;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      backdrop-filter: blur(4px);
+    }
+    .overlay h1 {
+      font-size: 2.2rem;
+      color: #00f0ff;
+      text-shadow: 0 0 10px #00f0ff, 0 0 20px #ff0055;
+      margin-bottom: 10px;
+    }
+    .overlay p {
+      color: #cccccc;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+    .btn {
+      background: transparent;
+      color: #ff0055;
+      border: 2px solid #ff0055;
+      padding: 12px 28px;
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border-radius: 30px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+      transition: all 0.2s ease-in-out;
+    }
+    .btn:hover {
+      background: #ff0055;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(255, 0, 85, 0.8);
+      transform: scale(1.05);
+    }
+    .hidden {
+      display: none !important;
+    }
+    .instructions {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #606080;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <div class="hud">
+      <div>Score: <span id="scoreDisplay">0</span></div>
+      <div>SYNTHWAVE '84</div>
+      <div>Speed: <span id="speedDisplay">0</span> km/h</div>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="450"></canvas>
+
+    <div id="startScreen" class="overlay">
+      <h1>SYNTHWAVE '84</h1>
+      <p>Cruise the neon grid highway! Dodge traffic and maximize your speed.</p>
+      <button class="btn" onclick="startGame()">Drive</button>
+    </div>
+
+    <div id="gameOverScreen" class="overlay hidden">
+      <h1>HIGHWAY CRASH</h1>
+      <p id="overText">Score: 0</p>
+      <button class="btn" onclick="startGame()">Reboot Run</button>
+    </div>
+
+    <div class="instructions">Steer: Arrow Keys / A & D | Mobile: Touch Left / Right</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const speedDisplay = document.getElementById('speedDisplay');
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const overText = document.getElementById('overText');
+
+    let gameRunning = false;
+    let animationId;
+    let score = 0;
+    let speed = 0;
+    const maxSpeed = 160;
+
+    // Player position
+    let playerX = 0; // -1 (left) to 1 (right)
+    let isMovingLeft = false;
+    let isMovingRight = false;
+
+    // Track state
+    let trackPosition = 0;
+    let obstacles = [];
+
+    function drawBackground() {
+      // Synthwave Sunset Gradient
+      let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.5);
+      gradient.addColorStop(0, '#03001e');
+      gradient.addColorStop(0.5, '#7303c0');
+      gradient.addColorStop(1, '#ec38bc');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height * 0.5);
+
+      // Neon Sun
+      ctx.fillStyle = '#fdeff9';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#ec38bc';
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height * 0.35, 40, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawRoad() {
+      const horizonY = canvas.height * 0.45;
+      const roadBottomY = canvas.height;
+
+      // Dark road base
+      ctx.fillStyle = '#0a0a16';
+      ctx.beginPath();
+      ctx.moveTo(canvas.width * 0.4, horizonY);
+      ctx.lineTo(canvas.width * 0.6, horizonY);
+      ctx.lineTo(canvas.width * 0.95, roadBottomY);
+      ctx.lineTo(canvas.width * 0.05, roadBottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Outer Neon Edges
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#00f0ff';
+
+      ctx.beginPath();
+      ctx.moveTo(canvas.width * 0.4, horizonY);
+      ctx.lineTo(canvas.width * 0.05, roadBottomY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(canvas.width * 0.6, horizonY);
+      ctx.lineTo(canvas.width * 0.95, roadBottomY);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Moving Grid Lines
+      ctx.strokeStyle = 'rgba(255, 0, 127, 0.6)';
+      ctx.lineWidth = 2;
+      const numLines = 10;
+      for (let i = 0; i < numLines; i++) {
+        let lineZ = ((trackPosition % 100) / 100 + i) / numLines;
+        if (lineZ > 1) lineZ -= 1;
+        let y = horizonY + Math.pow(lineZ, 2) * (roadBottomY - horizonY);
+
+        ctx.beginPath();
+        let leftX = canvas.width * 0.4 - lineZ * (canvas.width * 0.35);
+        let rightX = canvas.width * 0.6 + lineZ * (canvas.width * 0.35);
+        ctx.moveTo(leftX, y);
+        ctx.lineTo(rightX, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawPlayer() {
+      const carW = 50;
+      const carH = 25;
+      const carX = canvas.width / 2 + playerX * (canvas.width * 0.32) - carW / 2;
+      const carY = canvas.height - 45;
+
+      // Car Body
+      ctx.fillStyle = '#00f0ff';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#00f0ff';
+      ctx.fillRect(carX, carY, carW, carH);
+
+      // Tail Lights
+      ctx.fillStyle = '#ff0055';
+      ctx.shadowColor = '#ff0055';
+      ctx.fillRect(carX + 4, carY + 4, 10, 6);
+      ctx.fillRect(carX + carW - 14, carY + 4, 10, 6);
+      ctx.shadowBlur = 0;
+    }
+
+    function handleObstacles() {
+      if (Math.random() < 0.035) {
+        obstacles.push({
+          lane: (Math.random() - 0.5) * 1.6,
+          z: 1.0 // Start near horizon
+        });
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        let obs = obstacles[i];
+        obs.z -= speed * 0.00015;
+
+        // Project 3D to 2D
+        let horizonY = canvas.height * 0.45;
+        let roadBottomY = canvas.height;
+        let pZ = 1 - obs.z; // 0 at horizon, 1 at bottom
+        
+        if (pZ > 0) {
+          let y = horizonY + Math.pow(pZ, 2) * (roadBottomY - horizonY);
+          let scale = 0.2 + pZ * 0.8;
+          let obsW = 40 * scale;
+          let obsH = 20 * scale;
+          let x = canvas.width / 2 + obs.lane * (canvas.width * 0.32) * pZ - obsW / 2;
+
+          // Draw Traffic Car
+          ctx.fillStyle = '#ff0055';
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = '#ff0055';
+          ctx.fillRect(x, y - obsH, obsW, obsH);
+          ctx.shadowBlur = 0;
+
+          // Collision Check
+          if (pZ > 0.85 && Math.abs(obs.lane - playerX) < 0.25) {
+            endGame();
+          }
+        }
+
+        if (obs.z <= 0) {
+          obstacles.splice(i, 1);
+          score += 15;
+          scoreDisplay.innerText = score;
+        }
+      }
+    }
+
+    function update() {
+      if (!gameRunning) return;
+
+      // Speed acceleration
+      if (speed < maxSpeed) speed += 0.2;
+      speedDisplay.innerText = Math.floor(speed);
+
+      trackPosition += speed * 0.1;
+
+      // Player Movement
+      if (isMovingLeft && playerX > -0.85) playerX -= 0.04;
+      if (isMovingRight && playerX < 0.85) playerX += 0.04;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      drawRoad();
+      handleObstacles();
+      drawPlayer();
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      if (gameRunning) animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      score = 0;
+      speed = 40;
+      playerX = 0;
+      obstacles = [];
+      scoreDisplay.innerText = score;
+
+      gameRunning = true;
+      startScreen.classList.add('hidden');
+      gameOverScreen.classList.add('hidden');
+
+      cancelAnimationFrame(animationId);
+      gameLoop();
+    }
+
+    function endGame() {
+      gameRunning = false;
+      cancelAnimationFrame(animationId);
+      overText.innerText = `Final Score: ${score}`;
+      gameOverScreen.classList.remove('hidden');
+    }
+
+    // Input Handling
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') isMovingLeft = true;
+      if (e.key === 'ArrowRight' || e.key === 'd') isMovingRight = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') isMovingLeft = false;
+      if (e.key === 'ArrowRight' || e.key === 'd') isMovingRight = false;
+    });
+
+    // Touch controls
+    canvas.addEventListener('touchstart', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.touches[0].clientX - rect.left;
+      if (x < canvas.width / 2) {
+        isMovingLeft = true; isMovingRight = false;
+      } else {
+        isMovingRight = true; isMovingLeft = false;
+      }
+    });
+
+    canvas.addEventListener('touchend', () => {
+      isMovingLeft = false;
+      isMovingRight = false;
+    });
+  </script>
+</body>
+</html>
