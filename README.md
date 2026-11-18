@@ -20,10 +20,4 @@
 3. **Score:** Earn points for every traffic obstacle you pass while maintaining high speeds!
 
 ---
-
-## 🚀 GitHub Pages Deployment Instructions
-
-1. Push `index.html` to the root directory of your GitHub repository.
-2. Open your repository on GitHub and navigate to **Settings** $\rightarrow$ **Pages**.
-3. Under **Build and deployment**, set the source branch to `main` and directory to `/ (root)`.
-4. Click **Save** to receive your live game link (`https://<username>.github.io/<repo-name>/`).
+to visit :  https://shinsishifa.github.io/synthwave-horizon-84/
