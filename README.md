@@ -20,4 +20,6 @@
 3. **Score:** Earn points for every traffic obstacle you pass while maintaining high speeds!
 
 ---
-to visit :  https://shinsishifa.github.io/synthwave-horizon-84/
+  https://shinsishifa.github.io/synthwave-horizon-84/
+
+  [![Visit Site](https://img.shields.io/badge/Click%20Here-Visit%20Live%20Site-cyan?style=for-the-badge&logo=rocket&logoColor=black)](//shinsishifa.github.io/synthwave-horizon-84/)
